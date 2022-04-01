@@ -11,14 +11,22 @@ import plotly.express as px
 import statsmodels.api as sm
 from statsmodels.tsa.stattools import adfuller, acf, pacf,arma_order_select_ic
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-from statsmodels.tsa.arima_model import ARIMA
+from statsmodels.tsa.arima.model import ARIMA
 import warnings
 warnings.simplefilter('ignore')
 
-data = pd.read_csv("time_series_covid19_confirmed_US.csv", parse_dates=['date'], index_col='date')
+data = pd.read_csv("time_series_covid19_confirmed_US.csv", parse_dates=['Date'], index_col='Date')
+df = data.groupby(['Date','Country_Region']).agg('sum').reset_index()
 
-# Plot
-fig, axes = plt.subplots(2, 1, figsize=(10,5), dpi=100, sharex=True)
+
+def top10(data, label):
+    df = data.fillna('NA').groupby(['Country_Region', 'Date'])[label].sum().groupby(
+        'Country_Region').max().sort_values() \
+        .groupby(['Country_Region']).sum().sort_values(ascending=False)
+
+    highest = pd.DataFrame(df).head(1)
+
+    return highest
 
 sns.set(palette='Set1', style='darkgrid')
 # Function for making a time series and plotting the rolled mean and standard
@@ -59,12 +67,6 @@ def createTimeSeries(country):
 
 timeSeriesUSCases, timeSeriesUSFatalities = createTimeSeries('US')
 
-# Usual Differencing
-axes[0].plot(data[:], label='Original Series')
-axes[0].plot(data[:].diff(1), label='Usual Differencing')
-axes[0].set_title('Usual Differencing')
-axes[0].legend(loc='upper left', fontsize=10)
-
 def stationarity(ts):
     print('Results of Dickey-Fuller Test:')
     test = adfuller(ts, autolag='AIC')
@@ -87,9 +89,9 @@ checkStationarity(timeSeriesUSCases, timeSeriesUSFatalities)
 def split(timeseries):
     # splitting 85%/15% because of little amount of data
     size = int(len(timeseries) * 0.85)
-    train = timeseries[:size]
+    data = timeseries[:size]
     test = timeseries[size:]
-    return (train, test)
+    return (data, test)
 
 
 def plot_pred_vs_true(pred, test, country, case):
@@ -116,7 +118,7 @@ def plots_result(model, ts, test, country, case):
 
 # Arima modeling for ts
 def arima(timeseries, country, case):
-    train, test = split(timeseries)
+    data, test = split(timeseries)
 
     p = d = q = range(0, 6)
     lowest_aic = 99999
@@ -125,7 +127,7 @@ def arima(timeseries, country, case):
     # Determining the best parameters
     for var in pdq:
         try:
-            model = ARIMA(train, order=var)
+            model = ARIMA(data, order=var)
             result = model.fit()
 
             if (result.aic <= lowest_aic):
@@ -135,9 +137,9 @@ def arima(timeseries, country, case):
             continue
 
     # Modeling
-    model = ARIMA(train, order=best_parameters)
+    model = ARIMA(data, order=best_parameters)
 
-    plots_result(model, train, test, country, case)
+    plots_result(model, data, country, case)
 
     print('Best Parameters(p,d,q) for ' + country + ' ' + case + ': ' + str(best_parameters))
     return best_parameters
