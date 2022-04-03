@@ -15,7 +15,8 @@ from statsmodels.tsa.arima.model import ARIMA
 import warnings
 warnings.simplefilter('ignore')
 
-data = pd.read_csv("time_series_covid19_confirmed_US.csv", parse_dates=['Date'], index_col='Date')
+data = pd.read_csv("time_series_covid19_confirmed_US.csv")
+test = pd.read_csv("test.csv")
 df = data.groupby(['Date','Country_Region']).agg('sum').reset_index()
 
 
@@ -74,7 +75,6 @@ def stationarity(ts):
     # for i,val in test[4].items():
     # results['Critical Value (%s)'%i] = val
     print('P-Value: ' + str(results['p-value']))
-
 
 def checkStationarity(case_ts, fatal_ts):
     tsC = case_ts['ConfirmedCases'].values
